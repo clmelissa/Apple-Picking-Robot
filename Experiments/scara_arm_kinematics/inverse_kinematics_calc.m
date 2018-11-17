@@ -1,3 +1,6 @@
+ % Given a point in XY plane, the scara arm will
+ % solve the inverse kinematics to that point from origin
+ 
 close all;
 clear;
 
@@ -23,7 +26,7 @@ s = atan2(desiredY,desiredY) - Q;
 robot = ScaraArmInit(L1,L2);
 showdetails(robot)
 
-q0 = homeConfiguration(robot);
+origin = homeConfiguration(robot);
 ndof = 2;
 
 ik = robotics.InverseKinematics('RigidBodyTree', robot);
@@ -32,11 +35,11 @@ endEffector = 'tool';
 
 % Solve for the configuration satisfying the desired end effector
 % position
-qSol = ik(endEffector,trvec2tform(desiredPos),weights,[0;0]);
+endPos = ik(endEffector,trvec2tform(desiredPos),weights,origin);
 
 % Plot the robot position
 figure
-show(robot,qSol);
+show(robot,endPos);
 view(2)
 ax = gca;
 ax.Projection = 'orthographic';
