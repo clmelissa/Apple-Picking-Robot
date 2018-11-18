@@ -1,0 +1,8 @@
+prefix=/home/melissa/Documents/scara_gazebo/install
+
+Name: scara_arm
+Description: Description of scara_arm
+Version: 0.0.0
+Cflags: 
+Libs: -L/home/melissa/Documents/scara_gazebo/install/lib 
+Requires: gazebo_ros roscpp std_msgs tf

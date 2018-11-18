@@ -1,0 +1,15 @@
+<launch>
+  <!-- initialize gazebo with an empty world file -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(find scara_arm)/launch/initialize.world"/>
+    <arg name="gui" value="true" />
+    <arg name="paused" value="true"/>
+    <arg name="use_sim_time" value="true"/>
+  </include>
+
+  <!-- spawn the scara arm in gazebo -->
+  <node name="scara_arm_model" pkg="gazebo_ros" type="spawn_model" args="-file $(find scara_arm)/urdf/scara_arm_model.urdf -urdf -model scara_arm_model
+    -y -1.5
+    -J scara_arm_model::rotation1 -0.75
+    -J scara_arm_model::rotation2 2.1" />
+</launch>
