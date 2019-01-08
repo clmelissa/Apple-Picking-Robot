@@ -1,0 +1,8 @@
+prefix=/home/colin/RRBot/install
+
+Name: rrbot_description
+Description: Description of rrbot_description
+Version: 0.0.0
+Cflags: 
+Libs: -L/home/colin/RRBot/install/lib 
+Requires: 
