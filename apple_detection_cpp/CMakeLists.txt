@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.2)
+project( apple_detection )
+find_package( OpenCV REQUIRED )
+include_directories( ${OpenCV_INCLUDE_DIRS} )
+add_executable( apple_detection apple_detection.cpp )
+target_link_libraries( apple_detection ${OpenCV_LIBS} )
