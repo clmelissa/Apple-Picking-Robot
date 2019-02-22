@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include "Arduino.h"
 
-const int MAX_POS = 200;
 
 class Motor {
 private:
@@ -13,6 +12,7 @@ private:
   bool enable;
   int position;
   bool CW;
+  int limit;
  
 public:
   // default constructor
@@ -26,17 +26,18 @@ public:
 
   // init the direction pin and step pin
   // have to call this function before using the class
-  void init(byte dir_p, byte step_p) {
+  void init(byte dir_p, byte step_p, int lim = 200) {
     dir_pin = dir_p;
     step_pin = step_p;
     pinMode(dir_pin, OUTPUT);
     pinMode(step_pin, OUTPUT);
     clockwise();
+    limit = lim;
   }
 
   // rotate the stepper motor if the motor is enabled
   void rotate() {
-    if (enable && abs(position) < MAX_POS) {
+    if (enable && abs(position) < limit) {
       digitalWrite(step_pin,HIGH);
       delay(50);
       digitalWrite(step_pin,LOW);
