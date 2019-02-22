@@ -1,54 +1,4 @@
-class Motor {
-private:
- byte dir_pin;
- byte step_pin;
- int step_count;
- bool enable;
- 
-public:
-  Motor() {
-  step_count = 0;
-  dir_pin = 0;
-  step_pin = 0;
-  enable = false;
- }
- void init(byte dir_p, byte step_p) {
-  dir_pin = dir_p;
-  step_pin = step_p;
-  pinMode(dir_pin, OUTPUT);
-  pinMode(step_pin, OUTPUT);
- }
- byte resetStepCount() {
-  step_count = 0;
- }
- void rotate() {
-  if (!enable) {
-    return;
-  }
-  digitalWrite(step_pin,HIGH);
-  delayMicroseconds(5000);
-//  delay(50);
-  digitalWrite(step_pin,LOW);
-  delayMicroseconds(5000);
-//  delay(50);
-  step_count++;
- }
- bool clockwise() const {
-  digitalWrite(dir_pin,HIGH);
- }
- void counterClockwise() const {
-  digitalWrite(dir_pin,LOW);
- }
- int getStepCount() const {
-  return step_count;
- }
- void enableMotor() {
-    enable = true;
- }
- void disableMotor() {
-    enable = false;
- }
-};
+#include "motor.h"
 
 Motor motor1;
 Motor motor2;
@@ -92,11 +42,6 @@ void loop() {
       digitalWrite(led_pin, HIGH);
       motor_run = true;
     }
-    
-    motor1.resetStepCount();
-    motor2.resetStepCount();
-    motor3.resetStepCount();
-    motor4.resetStepCount();
   }
   
   previous = reading;
