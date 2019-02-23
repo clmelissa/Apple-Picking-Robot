@@ -1,1 +1,15 @@
 **/*.jpg
+*.jpg
+*.png
+
+*.exe
+
+# CMake stuff
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+
