@@ -6,10 +6,12 @@ import math
 def get_image_mask(hsv_img, lower_thres, upper_thres):
   # blurring smooths the image and allows for slightly more accurate circle detection, as part of the next step includes edge detection
   mask = cv2.GaussianBlur(hsv_img, (5, 5), 0)
-  # construct a mask for the hsv image, then perform dilations and erosions to remove 'salt and pepper'
+  # construct a mask for the hsv image, then perform closing to remove 'salt and pepper'
   mask = cv2.inRange(mask, lower_thres, upper_thres)
-  mask = cv2.erode(mask, None, iterations=2)
-  mask = cv2.dilate(mask, None, iterations=2)
+  #mask = cv2.dilate(mask, None, iterations=2)
+  #mask = cv2.erode(mask, None, iterations=2)
+  kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7,7))
+  mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
   
   #cv2.imshow("Mask", mask)
   return mask
@@ -18,10 +20,10 @@ def main():
 
   # define the lower and upper boundaries of the HSV color space
   hsv_lower = (0, 45, 45)
-  hsv_upper = (18, 255, 255)
+  hsv_upper = (18, 225, 150)
 
   # Load an image in RGV 
-  frame = cv2.imread('DSC00999.jpg',1)
+  frame = cv2.imread('WIN_20190120_13_04_59_Pro.jpg',1)
   # Rescale image to falf x and y
   frame = cv2.resize(frame, (0,0), fx=0.5, fy=0.5) 
 
@@ -38,7 +40,7 @@ def main():
   for contour in contours:
     ((x, y), radius) = cv2.minEnclosingCircle(contour)
 
-    if radius > 40 :
+    if radius > 20 :
       # draw the circle on the frame,
       cv2.circle(frame, (int(x), int(y)), int(radius), (0, 255, 255), 2)
 
