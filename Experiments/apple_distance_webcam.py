@@ -22,15 +22,14 @@ def main():
   # get webcam feed
   camera = cv2.VideoCapture(1)
   # define the lower and upper boundaries of the HSV color space
-  hsv_lower = (5, 92, 45)
-  hsv_upper = (25, 225, 150)
+  hsv_lower = (0, 75, 10)
+  hsv_upper = (5, 255, 255)
 
   # camera focal length calculated by experiment
   f = 744
   # finding distance by : Distance = (Apple Diameter x Camera Focal Length) / Pixel Diameter
-  apple_diameter = 7.5 #in cm
+  apple_diameter = 5 #in cm
   apple_const = apple_diameter*f
-  apple_dist = -1
 
   while True:
     # Load an image in RGV 
@@ -56,14 +55,31 @@ def main():
       if perimeter>0:
         circularity = 4*math.pi*area/perimeter/perimeter
 
-        if radius > 30 and circularity > 0.5:
+        if radius > 30 and circularity > 0.7:
           # draw the circle on the frame,
           cv2.circle(frame, (int(x), int(y)), int(radius), (0, 255, 255), 2)
           pixel_diameter = radius*2
           apple_dist = apple_const/pixel_diameter
+          x_center = np.shape(frame)[1]/2
+          y_center = np.shape(frame)[0]/2
+          center = True
+          if x < (x_center - 35):
+            cv2.putText(frame, "Move left" ,(10,200), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255),2,cv2.LINE_AA)
+            center = False
+          elif x > (x_center + 35):
+            cv2.putText(frame, "Move right" ,(10,200), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255),2,cv2.LINE_AA)
+            center = False
+          if y < (y_center - 35):
+            cv2.putText(frame, "Move up" ,(400,200), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255),2,cv2.LINE_AA)
+            center = False
+          elif y > (y_center + 35):
+            cv2.putText(frame, "Move down" ,(400,200), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255),2,cv2.LINE_AA)
+            center = False
+          if center:
+            cv2.putText(frame, "CENTER" ,(10,200), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255),2,cv2.LINE_AA)
+          cv2.putText(frame, "Distance :"+str(apple_dist) ,(10,80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255),2,cv2.LINE_AA)
 
     cv2.imshow("Mask", mask)
-    cv2.putText(frame, "Distance :"+str(apple_dist) ,(10,80), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2,cv2.LINE_AA)
     cv2.imshow("Frame", frame)
     apple_dist = -1
     key = cv2.waitKey(1) & 0xFF
