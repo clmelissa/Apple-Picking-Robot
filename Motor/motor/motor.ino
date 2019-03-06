@@ -1,12 +1,19 @@
 #include "motor.h"
 
-Motor motor1;
-Motor motor2;
-Motor motor3;
-Motor motor4;
+// IMU
+Adafruit_BNO055 shoulder_imu = Adafruit_BNO055(55, BNO055_ADDRESS_A);
+Adafruit_BNO055 elbow_imu = Adafruit_BNO055(56, BNO055_ADDRESS_B);
+
+LinkMotor motor1(&shoulder_imu);
+//Motor motor2;
+//Motor motor3;
+//Motor motor4;
 
 const byte button_pin = 11;
 const byte led_pin = 10;
+
+// ultrasonic 
+const byte uc_pin = 46;
 
 bool motor_run = false;
 bool return_to_zero_pos = false;
@@ -20,16 +27,57 @@ int FULL_REV = 200;
 // for Serial com
 String inputString = ""; 
 
+int target_angle = 0;
+
+// 0 should be base
+// min is 5 cm
+double vertical_pos() {
+  // The PING))) is triggered by a HIGH pulse of 2 or more microseconds.
+  // Give a short LOW pulse beforehand to ensure a clean HIGH pulse:
+  pinMode(uc_pin, OUTPUT);
+  digitalWrite(uc_pin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(uc_pin, HIGH);
+  delayMicroseconds(5);
+  digitalWrite(uc_pin, LOW);
+
+  // The same pin is used to read the signal from the PING))): a HIGH pulse
+  // whose duration is the time (in microseconds) from the sending of the ping
+  // to the reception of its echo off of an object.
+  pinMode(uc_pin, INPUT);
+  long duration = pulseIn(uc_pin, HIGH);
+  return duration / 29.0 / 2.0;
+}
+
 void setup() { 
   Serial.begin(9600);
  
   motor1.init(7,6); 
-  motor2.init(9,8);
-  motor3.init(3,2);
-  motor4.init(5,4);
+//  motor2.init(9,8);
+//  motor3.init(3,2);
+//  motor4.init(5,4);
   
   pinMode(led_pin, OUTPUT);
   pinMode(button_pin, INPUT);
+  pinMode(button_pin, OUTPUT);
+
+  /* Initialise the IMU */
+  if(!shoulder_imu.begin())
+  {
+    /* There was a problem detecting the BNO055 ... check your connections */
+    Serial.print("Ooops, no BNO055 for shoulder detected ... Check your wiring or I2C ADDR!");
+    while(1);
+  }
+  if(!elbow_imu.begin())
+  {
+    /* There was a problem detecting the BNO055 ... check your connections */
+    Serial.print("Ooops, no BNO055 for elbow detected ... Check your wiring or I2C ADDR!");
+    while(1);
+  }
+  delay(10);
+    
+  shoulder_imu.setExtCrystalUse(true);
+  elbow_imu.setExtCrystalUse(true);
 }
 
 void loop() {
@@ -47,11 +95,11 @@ void loop() {
   
   previous = reading;
   
-  if (motor_run) {
+  if (motor_run && motor1.targetMode()) {
     motor1.rotate();
-    motor2.rotate();
-    motor3.rotate();
-    motor4.rotate();
+//    motor2.rotate();
+//    motor3.rotate();
+//    motor4.rotate();
   }
 }
 
@@ -60,21 +108,21 @@ void checkString () {
 //  Serial.println(inputString);
   if (inputString == "s run") // shoulder motor
     motor1.enableMotor();
-  else if (inputString == "e run") // elbow motor
-    motor2.enableMotor();
-  else if (inputString == "v run") // vertical motor
-    motor3.enableMotor();
-  else if (inputString == "t run") // twister motor
-    motor4.enableMotor();
+//  else if (inputString == "e run") // elbow motor
+//    motor2.enableMotor();
+//  else if (inputString == "v run") // vertical motor
+//    motor3.enableMotor();
+//  else if (inputString == "t run") // twister motor
+//    motor4.enableMotor();
 
   else if (inputString == "s stop") // shoulder motor
     motor1.disableMotor();
-  else if (inputString == "e stop") // elbow motor
-    motor2.disableMotor();
-  else if (inputString == "v stop") // vertical motor
-    motor3.disableMotor();
-  else if (inputString == "t stop") // twister motor
-    motor4.disableMotor();
+//  else if (inputString == "e stop") // elbow motor
+//    motor2.disableMotor();
+//  else if (inputString == "v stop") // vertical motor
+//    motor3.disableMotor();
+//  else if (inputString == "t stop") // twister motor
+//    motor4.disableMotor();
 
   else if (inputString == "s cw")
     motor1.clockwise();
@@ -84,23 +132,23 @@ void checkString () {
     motor1.returnToZeroPos();
     motor1.disableMotor();
   }
-  else if (inputString == "e cw")
-    motor2.clockwise();
-  else if (inputString == "e ccw")
-    motor2.counterClockwise();
-  else if (inputString == "e ret") {
-    motor2.returnToZeroPos();
-    motor2.disableMotor();
-  }
+//  else if (inputString == "e cw")
+//    motor2.clockwise();
+//  else if (inputString == "e ccw")
+//    motor2.counterClockwise();
+//  else if (inputString == "e ret") {
+//    motor2.returnToZeroPos();
+//    motor2.disableMotor();
+//  }
   
-  else if (inputString == "v cw")
-    motor3.clockwise();
-  else if (inputString == "v ccw")
-    motor3.counterClockwise();
-  else if (inputString == "v ret") {
-    motor3.returnToZeroPos();
-    motor3.disableMotor();
-  }
+//  else if (inputString == "v cw")
+//    motor3.clockwise();
+//  else if (inputString == "v ccw")
+//    motor3.counterClockwise();
+//  else if (inputString == "v ret") {
+//    motor3.returnToZeroPos();
+//    motor3.disableMotor();
+//  }
 
 //  else if (inputString == "s pos") {
 //    Serial.print("Number of steps of shoulder motor:");
@@ -119,8 +167,10 @@ void checkString () {
 //    Serial.println(motor2.getPosition());
 //  }
   else{
-    Serial.print("ERROR: Unknown command ");
+    Serial.print("INFO: Going to angle ");
     Serial.println(inputString);
+    target_angle = (inputString.toInt());
+    motor1.setTarget(target_angle);
   }
     
 }
