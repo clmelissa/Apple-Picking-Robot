@@ -207,7 +207,95 @@ public:
         } else {
           clockwise();
         }
+
+      } else if (go_to_target)
         angle_counter--;
+
+      digitalWrite(step_pin,HIGH);
+      if (motor_speed>=1)
+        delay(motor_speed);
+      else
+        delayMicroseconds(motor_speed*1000);
+      
+      digitalWrite(step_pin,LOW);
+
+      if (motor_speed>=1)
+        delay(motor_speed);
+      else
+        delayMicroseconds(motor_speed*1000);
+
+
+
+      if (CW) {
+        pos++;
+      } else {
+        pos--;
+      }
+    }
+  }
+}; 
+
+// Link motor is for elbow and shoulder motor
+// this class will have an IMU to control the movement
+class VerticalMotor : public Motor{
+private:
+  int uc_pin;
+  double tolerance;
+
+public:
+  VerticalMotor(byte uc, double tol = 0.75)
+  : Motor(),
+    uc_pin(uc),
+    tolerance(tol) {
+  }
+
+  // 0 should be base
+  // min is 5 cm
+  double verticalPos() {
+    // The PING))) is triggered by a HIGH pulse of 2 or more microseconds.
+    // Give a short LOW pulse beforehand to ensure a clean HIGH pulse:
+    pinMode(uc_pin, OUTPUT);
+    digitalWrite(uc_pin, LOW);
+    delayMicroseconds(2);
+    digitalWrite(uc_pin, HIGH);
+    delayMicroseconds(5);
+    digitalWrite(uc_pin, LOW);
+
+    // The same pin is used to read the signal from the PING))): a HIGH pulse
+    // whose duration is the time (in microseconds) from the sending of the ping
+    // to the reception of its echo off of an object.
+    pinMode(uc_pin, INPUT);
+    long duration = pulseIn(uc_pin, HIGH);
+    return duration / 29.0 / 2.0;
+  }
+
+  virtual int setTarget(int t) {
+    target = t;
+    go_to_target = true;
+
+    // TODO: Have to double check this 
+    if (target < verticalPos()) {
+      counterClockwise();
+    } else {
+      clockwise();
+    }
+  }
+
+  virtual void rotate(float motor_speed = 0.5) {
+    // notAtLimit true if position is less than limit or the direction is going
+    // will reduce the position
+    int current_position = verticalPos();
+    bool notAtLimit = ((current_position >= 8) || CW) &&
+                      ((current_position <= 45) || CW);
+
+    if (enable && notAtLimit) {
+      // increase speed here because we will start checking for IMU
+      if (go_to_target && (abs(current_position - target) < tolerance)) {
+        Serial.print("INFO: Arrive at ");
+        Serial.println(target);
+        go_to_target = false;
+        target = 0;
+        return;       
       }
 
       digitalWrite(step_pin,HIGH);
@@ -230,7 +318,6 @@ public:
       }
     }
   }
-
 }; 
 
 #endif
