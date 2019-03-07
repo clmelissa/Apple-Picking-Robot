@@ -59,7 +59,7 @@ void setup() {
   
   pinMode(led_pin, OUTPUT);
   pinMode(button_pin, INPUT);
-  pinMode(button_pin, OUTPUT);
+  pinMode(uc_pin, OUTPUT);
 
   /* Initialise the IMU */
   if(!shoulder_imu.begin())
