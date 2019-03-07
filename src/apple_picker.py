@@ -16,7 +16,7 @@ def get_image_mask(hsv_img, lower_thres, upper_thres):
   # mask = cv2.dilate(mask, None, iterations=2)
   # opening_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (4,4))
   # mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, opening_kernel)
-  closing_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (20,20))
+  closing_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (35,35))
   mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, closing_kernel)
 
   # mask = cv2.erode(mask, None, iterations=2)
@@ -37,15 +37,16 @@ def main():
   # get webcam feed
   camera = cv2.VideoCapture(1)
   # define the lower and upper boundaries of the HSV color space
-  hsv_lower = (0, 75, 10)
-  hsv_upper = (5, 255, 255)
+  hsv_lower = (0, 75, 75)
+  hsv_upper = (15, 255, 240)
 
   # camera focal length calculated by experiment
-  f = 744
-  
+  f = 748
   # finding distance by : Distance = (Apple Diameter x Camera Focal Length) / Pixel Diameter
-  apple_diameter = 5 #in cm
+  apple_diameter = 6.6 #in cm
   apple_const = apple_diameter*f
+  # camera offset from arm center in cm
+  camera_offset = 6
 
   str_input = ""
 
@@ -53,31 +54,31 @@ def main():
   x_tol = 30
   y_tol = 30
 
-  print("[INFO] : Start program")
+  print("Start program")
 
   send_command_to_arduino("start")
 
   while 1:
     if (ser.in_waiting>0):
-      time.sleep(0.1)
       arduino_input = ser.read(ser.in_waiting)  
-      print("[INFO] : Get arduino_input : " + arduino_input)
-      if "run" == arduino_input:
+      print("Read arduino_input")
+      print("get command: "+arduino_input)
+      if "run" in arduino_input:
         break
-    time.sleep(0.1)
+    else:
+      time.sleep(0.5)
 
-  print("[INFO] : Start detection")
+  print("Start detection")
 
   while True:
     if (ser.in_waiting>0):
-      arduino_input = ser.read(1)  
-      print("[INFO] : Get arduino_input : " + arduino_input)
+      arduino_input = ser.read(ser.in_waiting)  
+      print("Arduino command: "+arduino_input)
     # if "run" == arduino_input:
     # Load an image in RGV 
     (grabbed, frame) = camera.read()
     capture = frame
 
-    cv2.imshow("capture", capture)
     # Rescale image to falf x and y
     # frame = cv2.resize(frame, (0,0), fx=0.5, fy=0.5) 
 
@@ -91,10 +92,7 @@ def main():
     contours = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2]
    
     # only proceed if contour was found
-    if len(contours) > 0:
-      # only calculate largest one for not
-      # TODO: Put all the apples in a queue and pick all of them
-      contour = max(contours, key=cv2.contourArea)
+    for contour in contours:
       ((x, y), radius) = cv2.minEnclosingCircle(contour)
       #calculate the circularity of the contour
       area = cv2.contourArea(contour)
@@ -102,7 +100,7 @@ def main():
       if perimeter>0:
         circularity = 4*math.pi*area/perimeter/perimeter
 
-        if radius > 30 and circularity > 0.7:
+        if radius > 30 and circularity > 0.55:
           # draw the circle on the frame,
           cv2.circle(frame, (int(x), int(y)), int(radius), (0, 255, 255), 2)
           pixel_diameter = radius*2
@@ -112,46 +110,62 @@ def main():
           center = True
 
           # Horizontal distance
-          if x < (x_center - x_tol):
-            write_on_frame(frame, "Move left", (10,200)) 
-            send_command_to_arduino("l")
-            center = False
-          elif x > (x_center + x_tol):
-            write_on_frame(frame, "Move right", (10,200))  
-            send_command_to_arduino("r")
-            center = False
+          # if x < (x_center - x_tol):
+          #   write_on_frame(frame, "Move left", (10,200)) 
+          #   send_command_to_arduino("l")
+          #   center = False
+          # elif x > (x_center + x_tol):
+          #   write_on_frame(frame, "Move right", (10,200))  
+          #   send_command_to_arduino("r")
+          #   center = False
 
           # Vertical distance
           # calculate how much is has to move up & down
-          mov = abs(y - y_center)/pixel_diameter*apple_diameter
-          if y < (y_center - y_tol):
-            write_on_frame(frame, "Move up  " + str(mov), (400,200))   
-            send_command_to_arduino("u")
+
+          pixel_ratio = (pixel_diameter-10)/apple_diameter
+          mov = (abs(y - y_center)/pixel_ratio )
+          
+          pixel_offset = pixel_ratio * camera_offset
+          y_check = y-pixel_offset
+          if y_check < (y_center - 35):
+            mov += camera_offset
+            steps = int(mov*500) - 100
+            write_on_frame(frame, "Up  " + str(mov)+ "cm", (400,200))   
+            write_on_frame(frame, "Up  " + str(steps)+ "steps", (300,200))   
+            send_command_to_arduino("u " + str(steps))
             center = False
-          elif y > (y_center + y_tol):
-            write_on_frame(frame, "Move down  " + str(mov), (400,200))  
-            send_command_to_arduino("d")
+          elif y_check > (y_center + 35):
+            mov -= camera_offset
+            steps = int(mov*500) - 100
+            write_on_frame(frame, "Down  " + str(mov) + "cm", (400,200))  
+            write_on_frame(frame, "Down  " + str(steps) + "steps", (400,200))  
+            send_command_to_arduino("d " + str(steps))
             center = False
+          write_on_frame(frame, "Distance :"+str(apple_dist), (10,80))
+
 
           if center:
             write_on_frame(frame, "CENTER", (10,200))  
             send_command_to_arduino("c")
           else:
+            # cv2.imshow("Mask", mask)
+            # cv2.imshow("Frame", frame)
             # wait until arduino send g to indicate it has finish moving
             while(1):
               if (ser.in_waiting>0):
-                arduino_input = ser.read(ser.in_waiting)  
-                if "g" == arduino_input:
-                  break
-          write_on_frame(frame, "Distance :"+str(apple_dist), (10,80))
-
-      cv2.imshow("Mask", mask)
-      cv2.imshow("Frame", frame)
+                arduino_input = ser.read(ser.in_waiting)
+                print("Arduino command: "+arduino_input)  
+                if "g" in arduino_input:
+                  exit()
+            time.sleep(0.5)
+         
+      # cv2.imshow("Mask", mask)
+      # cv2.imshow("Frame", frame)
+      # key = cv2.waitKey(1) & 0xFF
       apple_dist = -1
-      key = cv2.waitKey(1) & 0xFF
      
-      if key == ord("s"):
-        break
+      # if key == ord("s"):
+      #   break
    
   # cleanup the camera and close any open windows
   camera.release()
