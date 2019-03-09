@@ -30,7 +30,7 @@ Current Driver Setting: 1.5 A Output Current & 1/16 8uMicrostep </br>
 Kollmorgen Driver w setting: 1.2 A Output Current</br>
 
 ##### Twister
-The twister motor should not run CCW for more than 180 steps
+The twister motor **should not run CCW** for more than **180 steps**</br>
 The twister motor should run CW for around 670 steps
 
 ##### Gripper
