@@ -6,7 +6,7 @@ import serial
 import time
 
 # This should be the UNO, check which port
-ser = serial.Serial("/dev/ttyACM0", 9600, timeout=2)
+ser = serial.Serial("/dev/ttyACM1", 9600, timeout=2)
 
 def get_image_mask(hsv_img, lower_thres, upper_thres):
   # blurring smooths the image and allows for slightly more accurate circle detection
@@ -46,7 +46,7 @@ def main():
   apple_diameter = 6.6 #in cm
   apple_const = apple_diameter*f
   # camera offset from arm center in cm
-  camera_offset = 6
+  camera_offset = 5.75
 
   str_input = ""
 
@@ -55,6 +55,16 @@ def main():
   y_tol = 30
 
   print("Start program")
+
+  while 1:
+    if (ser.in_waiting>0):
+      arduino_input = ser.read(ser.in_waiting)  
+      print("Read arduino_input")
+      print("get command: "+arduino_input)
+      if "Set up done" in arduino_input:
+        break
+    else:
+      time.sleep(0.5)
 
   send_command_to_arduino("start")
 
@@ -100,8 +110,9 @@ def main():
       if perimeter>0:
         circularity = 4*math.pi*area/perimeter/perimeter
 
-        if radius > 30 and circularity > 0.55:
+        if radius > 30 and circularity > 0.65:
           # draw the circle on the frame,
+          print("Detected an apple")
           cv2.circle(frame, (int(x), int(y)), int(radius), (0, 255, 255), 2)
           pixel_diameter = radius*2
           apple_dist = apple_const/pixel_diameter
