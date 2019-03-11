@@ -41,7 +41,7 @@ public:
 
   // init the direction pin and step pin
   // have to call this function before using the class
-  virtual void init(byte dir_p, byte step_p, int lim = 50) {
+  void init(byte dir_p, byte step_p, int lim = 50) {
     dir_pin = dir_p;
     step_pin = step_p;
     pinMode(dir_pin, OUTPUT);
@@ -143,23 +143,53 @@ public:
   void disableMotor() {
     enable = false;
  }
+
+ bool isEnable() const {
+    return enable;
+ }
 };
 
 // Link motor is for elbow and shoulder motor
 // this class will have an IMU to control the movement
 class LinkMotor :  public Motor {
 private:
-  Adafruit_BNO055* imu;
+  Adafruit_BNO055 imu;
   int angle_counter;
   int angle_tolerance;
+  int counter_divider;
 
 public:
-  LinkMotor(Adafruit_BNO055* i, int tolerance = 5)
+//  LinkMotor(Adafruit_BNO055* i, int tolerance = 2, int divider = 1)
+//  : Motor(),
+//    imu(i),
+//    angle_counter(0),
+//    angle_tolerance(tolerance),
+//    counter_divider(divider) {
+//  }
+  LinkMotor(int tolerance = 2, int divider = 1)
   : Motor(),
-    imu(i),
     angle_counter(0),
-    angle_tolerance(tolerance) {
+    angle_tolerance(tolerance),
+    counter_divider(divider) {
   }
+
+//  void set_imu(bool shoulder) {
+//    
+//    if (shoulder) {
+//      imu = Adafruit_BNO055(55, BNO055_ADDRESS_A);
+//    } else
+//      imu = Adafruit_BNO055(56, BNO055_ADDRESS_B);
+//
+//    if(!imu.begin())
+//    {
+//      /* There was a problem detecting the BNO055 ... check your connections */
+//      Serial.print("Ooops, no BNO055 for elbow detected ... Check your wiring or I2C ADDR!");
+//      while(1);
+//    }
+//    delay(10);
+//      
+//    imu.setExtCrystalUse(true);
+//  }
 
   virtual int setTarget(int t) {
     target = t;
@@ -168,10 +198,15 @@ public:
       target -= 360;
 
     sensors_event_t event1;
-    imu->getEvent(&event1);
+    imu.getEvent(&event1);
     int curr_angle = event1.orientation.x;
+    if (curr_angle >= 270)
+      curr_angle -= 360;
 
-    angle_counter = abs(curr_angle - target) - 5; 
+    Serial.print("INFO: Current angle ");
+    Serial.println(curr_angle);
+
+    angle_counter = abs(curr_angle - target)/counter_divider; 
     if (target < curr_angle) {
       counterClockwise();
     } else {
@@ -179,37 +214,50 @@ public:
     }
   }
 
+  float getAngle() {
+    sensors_event_t event1;
+    imu.getEvent(&event1);
+    int curr_angle = event1.orientation.x;
+    if (curr_angle >= 270)
+      curr_angle -= 360;
+    return curr_angle;
+  }
+
   virtual void rotate(float motor_speed = 50) {
     // notAtLimit true if position is less than limit or the direction is going
     // will reduce the position
     // bool notAtLimit = ((abs(pos) <= limit) || ((CW && pos<0)||(!CW && pos>0)));
 
-    if (enable) {
+    if (enable && go_to_target) {
       // increase speed here because we will start checking for IMU
-      if (go_to_target && angle_counter <= 0) {
-        motor_speed = 0.01;
+      if (go_to_target && angle_counter<=0) {
+        motor_speed = 0.005;
 
         // check curr angle
         sensors_event_t event1;
-        imu->getEvent(&event1);
+        imu.getEvent(&event1);
         int curr_angle = event1.orientation.x;
         if (curr_angle >= 270)
           curr_angle -= 360;
+        
+        Serial.print("INFO: Angle ");
+        Serial.println(curr_angle);
         if (abs(curr_angle - target) < angle_tolerance) {
           Serial.print("INFO: Arrive at angle ");
           Serial.println(target);
           go_to_target = false;
+          enable = false;
           target = 0;
           return;
         }
+        
         else if (target < curr_angle) {
           counterClockwise();
         } else {
           clockwise();
         }
-
-      } else if (go_to_target)
-        angle_counter--;
+      }
+      angle_counter--;
 
       digitalWrite(step_pin,HIGH);
       if (motor_speed>=1)
@@ -239,85 +287,68 @@ public:
 // this class will have an IMU to control the movement
 class VerticalMotor : public Motor{
 private:
-  int uc_pin;
+  int ir_pin;
+  int us_pin;
   double tolerance;
+  double dest;
 
 public:
-  VerticalMotor(byte uc, double tol = 0.75)
+  VerticalMotor(byte ir, double tol = 0.75)
   : Motor(),
-    uc_pin(uc),
-    tolerance(tol) {
+    ir_pin(ir),
+    us_pin(32),
+    tolerance(tol),
+    dest(0) {
   }
 
   // 0 should be base
-  // min is 5 cm
+  // min is 10 cm
   double verticalPos() {
-    // The PING))) is triggered by a HIGH pulse of 2 or more microseconds.
-    // Give a short LOW pulse beforehand to ensure a clean HIGH pulse:
-    pinMode(uc_pin, OUTPUT);
-    digitalWrite(uc_pin, LOW);
+    int val = 0;
+    for (int i = 0; i < 5; i++) {
+      val += analogRead(ir_pin);       // reads the value of the sharp sensor
+    }
+    val = val/5;
+    double distance = 12343.85 * pow(val,-1.15);
+    return distance;
+  }
+
+  double verticalPosSonar() {
+    // establish variables for duration of the ping, and the distance result
+    // in inches and centimeters:
+    long duration;
+
+    pinMode(us_pin, OUTPUT);
+    digitalWrite(us_pin, LOW);
     delayMicroseconds(2);
-    digitalWrite(uc_pin, HIGH);
+    digitalWrite(us_pin, HIGH);
     delayMicroseconds(5);
-    digitalWrite(uc_pin, LOW);
+    digitalWrite(us_pin, LOW);
 
     // The same pin is used to read the signal from the PING))): a HIGH pulse
     // whose duration is the time (in microseconds) from the sending of the ping
     // to the reception of its echo off of an object.
-    pinMode(uc_pin, INPUT);
-    long duration = pulseIn(uc_pin, HIGH);
-    return duration / 29.0 / 2.0;
+    pinMode(us_pin, INPUT);
+    duration = pulseIn(us_pin, HIGH);
+    double distance = (duration) / 29.0 / 2.0;
+    return distance;
   }
 
-  virtual int setTarget(int t) {
-    target = t;
+  virtual int setTarget(double t) {
+    double current_position = verticalPos();
+    dest = t;
     go_to_target = true;
+    Serial.print("INFO: Current ");
+    Serial.println(current_position);
 
     // TODO: Have to double check this 
-    if (target < verticalPos()) {
+    if (dest > verticalPos()) {
       counterClockwise();
     } else {
       clockwise();
     }
   }
 
-  virtual void rotate(float motor_speed = 0.5) {
-    // notAtLimit true if position is less than limit or the direction is going
-    // will reduce the position
-    int current_position = verticalPos();
-    bool notAtLimit = ((current_position >= 8) || CW) &&
-                      ((current_position <= 45) || CW);
-
-    if (enable && notAtLimit) {
-      // increase speed here because we will start checking for IMU
-      if (go_to_target && (abs(current_position - target) < tolerance)) {
-        Serial.print("INFO: Arrive at ");
-        Serial.println(target);
-        go_to_target = false;
-        target = 0;
-        return;       
-      }
-
-      digitalWrite(step_pin,HIGH);
-      if (motor_speed>=1)
-        delay(motor_speed);
-      else
-        delayMicroseconds(motor_speed*1000);
-      
-      digitalWrite(step_pin,LOW);
-
-      if (motor_speed>=1)
-        delay(motor_speed);
-      else
-        delayMicroseconds(motor_speed*1000);
-
-      if (CW) {
-        pos++;
-      } else {
-        pos--;
-      }
-    }
-  }
 }; 
 
 #endif
