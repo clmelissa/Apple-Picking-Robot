@@ -44,6 +44,30 @@ const int numReads = 10;
 // for Serial com
 String inputString = ""; 
 
+// Potentiometer
+int shoulder_pot = A0;
+int elbow_pot = A1;
+float val = 0;
+float t = 0;
+float v;
+float R1 = 10000;
+float R2;
+float ang;
+float R2_counter;
+float counter;
+float R2_av;
+
+bool elbow_target = false;
+float e_target;
+bool shoulder_target = false;
+float s_target;
+
+float s_ang;
+float e_ang;
+
+bool vertical_target = false;
+int v_steps = 0;
+
 /*****************************************************************************************/
 /*************************************FUNCTIONS*******************************************/
 /*****************************************************************************************/
@@ -64,6 +88,25 @@ bool pressDetected(){
  
 }
 
+float getAngle(int analogPin) {
+//  float sum = 0;
+//  for(int i = 0; i < points; i++){
+//    sum = sum + R1/(1023.0/analogRead(analogPin) - 1)/1000000;
+//    delay(d);
+//  }
+  val = analogRead(analogPin);
+  float y_intercept = 172.0;
+  if (analogPin == elbow_pot)
+    y_intercept = 131.0;
+  
+  ang = -(18.0/70.0)*val + 90.0 + (18.0/70.0)*y_intercept;
+  if (analogPin == elbow_pot)
+    ang+=10.5;
+  else
+    ang-=10.5;
+  return ang;
+}
+
 /*****************************************************************************************/
 /******************************************MAIN*******************************************/
 /*****************************************************************************************/
@@ -74,9 +117,9 @@ void setup() {
   // Shoulder
   s_motor.init(53,52);
   // Elbow
-  e_motor.init(43,41); 
+  e_motor.init(42,41); 
   // Vertical
-  v_motor.init(47,49);
+  v_motor.init(49,47);
   // Gripper
   g_motor.init(48,46);
   // Twister
@@ -131,12 +174,54 @@ void loop() {
   if (motor_run) {
     s_motor.rotate(s_speed);
     e_motor.rotate(e_speed);
-    v_motor.rotate(5);
+    v_motor.rotate(1);
     g_motor.rotate(5);
-    t_motor.rotate(5); 
+    t_motor.rotate(3); 
 //    if (pressDetected()) {
 //      t_motor.disableMotor();
-//    }      
+//    }  
+    if (elbow_target) {
+      e_ang = getAngle(elbow_pot);
+      if (abs(e_ang - e_target) < 3) {
+        Serial.print("INFO: Arrive at angle ");
+        Serial.println(e_target);
+        elbow_target = false;
+        e_motor.disableMotor();
+        e_target = 0;
+      }
+      
+      else if (e_target < e_ang && !e_motor.isClockwise()) {
+//        Serial.print("clockwise");
+        e_motor.clockwise();
+      } else if (e_target > e_ang && e_motor.isClockwise()) {
+//        Serial.print("counterClockwise");
+        e_motor.counterClockwise();
+      }
+    }
+    if (shoulder_target) {
+      s_ang = getAngle(shoulder_pot);
+      if (abs(s_ang - s_target) < 3) {
+//        Serial.print("INFO: Arrive at angle ");
+//        Serial.println(s_target);
+        shoulder_target = false;
+        s_motor.disableMotor();
+        s_target = 0;
+        Serial.print("g");
+      }
+      
+      else if (s_target < s_ang && !s_motor.isClockwise()) {
+        s_motor.clockwise();
+      } else if (s_target > s_ang && s_motor.isClockwise()) {
+        s_motor.counterClockwise();
+      }
+    }
+    if (vertical_target) {
+      v_steps--;
+      if (v_steps == 0) {
+        vertical_target = false;
+        v_motor.disableMotor();
+      }
+    }    
   }
 //  Serial.print("Press = ");
 //  Serial.println(applePicked);
@@ -159,6 +244,27 @@ void checkString () {
     s_motor.clockwise();
   else if (inputString == "s ccw")
     s_motor.counterClockwise();
+  
+  else if (inputString.substring(0,7) == "starget") {
+    s_target = inputString.substring(8).toFloat();
+    Serial.print("Moving the shoulder to ");
+    Serial.println(s_target);
+    s_ang = getAngle(shoulder_pot);
+    Serial.print("Curent shoulder angle is ");
+    Serial.println(s_ang);
+    shoulder_target = true;
+    if (s_target<s_ang)
+      s_motor.clockwise();
+    else 
+      s_motor.counterClockwise();
+    s_motor.enableMotor();
+  }
+  
+  else if (inputString == "s ang") {
+    s_ang = getAngle(shoulder_pot);
+    Serial.print("Curent shoulder angle is ");
+    Serial.println(s_ang);
+  }
     
   else if (inputString == "e run") // elbow motor
     e_motor.enableMotor();
@@ -168,6 +274,28 @@ void checkString () {
     e_motor.clockwise();
   else if (inputString == "e ccw")
     e_motor.counterClockwise();
+  else if (inputString.substring(0,7) == "etarget") {
+    e_target = inputString.substring(8).toFloat();
+//    Serial.print("Moving the elbow to ");
+    Serial.println(e_target);
+    e_ang = getAngle(elbow_pot);
+//    Serial.print("Curent elbow angle is ");
+    Serial.println(e_ang);
+    elbow_target = true;
+    if (e_target<e_ang){
+//      Serial.print("Elbow motor is  moving CW");
+      e_motor.clockwise();}
+    else {
+//      Serial.print("Elbow motor is  moving CCW");
+      e_motor.counterClockwise();}
+    e_motor.enableMotor();
+  }
+  
+  else if (inputString == "e ang") {
+    e_ang = getAngle(elbow_pot);
+    Serial.print("Curent elbow angle is ");
+    Serial.println(e_ang);
+  }
 
   else if (inputString == "v run") // vertical motor
     v_motor.enableMotor();
@@ -187,6 +315,7 @@ void checkString () {
     g_motor.clockwise();
   else if (inputString == "g ccw")
     g_motor.counterClockwise();
+  // Number of steps to grip is 760-800
   else if (inputString == "g step") {
     Serial.print("Number of steps of gripper motor:");
     Serial.println(g_motor.getPosition());
@@ -201,7 +330,6 @@ void checkString () {
     t_motor.clockwise();
   else if (inputString == "t ccw")
     t_motor.counterClockwise();
-  // Number of steps to grip is 790-800
   else if (inputString == "t step") {
     Serial.print("Number of steps of twister motor:");
     Serial.println(t_motor.getPosition());
@@ -225,6 +353,29 @@ void checkString () {
     Serial.println(e_motor.getPosition());
   }
   
+  else if (inputString == "v pos") {
+    Serial.print("Number of steps of vertical motor:");
+    Serial.println(v_motor.getPosition());
+  }
+
+  else if (inputString == "grip") {
+    g_motor.counterClockwise();
+    g_motor.enableMotor();
+    for (int i = 0; i < 660; i++) {
+      g_motor.rotate(5);
+    }
+    g_motor.disableMotor();
+    Serial.println("g");
+  }
+  else if (inputString == "release") {
+    g_motor.clockwise();
+    g_motor.enableMotor();
+    for (int i = 0; i < 660; i++) {
+      e_motor.rotate(5);
+    }
+    g_motor.disableMotor();
+    Serial.println("g");
+  }
 
   // Autonomous
   else if (inputString == "start") {
@@ -248,32 +399,24 @@ void checkString () {
   }
   else if (inputString == "end") {
     e_motor.enableMotor();
-    for (int i = 0; i < 13; i++) {
+    for (int i = 0; i < 3; i++) {
       e_motor.rotate(110);
     }
     e_motor.disableMotor();
   }
   else if (inputString.substring(0,1) == "u") {
-    int num_steps = inputString.substring(2).toInt();
-    Serial.println(num_steps);
+    v_steps = inputString.substring(2).toInt();
+    vertical_target = true;
+    Serial.println(v_steps);
+    v_motor.clockwise();
     v_motor.enableMotor();
-    v_motor.counterClockwise();
-    for (int i = 0; i < num_steps; i++) {
-      v_motor.rotate(1);
-    }
-    v_motor.disableMotor();
-    Serial.println("g");
   }
   else if (inputString.substring(0,1) == "d") {
-    int num_steps = inputString.substring(2).toInt();
-    Serial.println(num_steps);
+    v_steps = inputString.substring(2).toInt();
+    vertical_target = true;
+    Serial.println(v_steps);
     v_motor.enableMotor();
-    v_motor.clockwise();
-    for (int i = 0; i < num_steps; i++) {
-      v_motor.rotate(1);
-    }
-    v_motor.disableMotor();
-    Serial.println("g");
+    v_motor.counterClockwise();
   }
 
 //  else if (inputString.substring(0,1) == "r") {

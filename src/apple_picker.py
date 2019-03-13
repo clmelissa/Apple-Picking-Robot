@@ -117,7 +117,7 @@ def main():
   scommand = "s run"
   ecommand = "e run"
 
-  movement_thres_X = 0.25
+  movement_thres_X = 0.15
   arrive = False
 
   while True:
@@ -168,7 +168,7 @@ def main():
             elif apple_dist < 26:
               send_command_to_arduino("s sp 75")
               send_command_to_arduino("e sp 95")
-              movement_thres_X = 0.1
+              movement_thres_X = 0.05
             elif apple_dist > 24:
               circular_thres = 0.65
           x_center = np.shape(frame)[1]/2
@@ -234,8 +234,10 @@ def main():
           if mode == 2:
             if arrive:
               if x < (x_center - 25) :
+                print "end left"
                 send_command_to_arduino("end")
               elif x > (x_center + 25) :
+                print "end right"
                 send_command_to_arduino("e ccw") 
                 send_command_to_arduino("end")
               quit()
