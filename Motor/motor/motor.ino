@@ -14,8 +14,8 @@ Motor g_motor;
 
 int target_angle = 0;
 
-int s_speed = 50;
-int e_speed = 90;
+int s_speed = 45;
+int e_speed = 72;
 
 bool motor_run = false;
 bool return_to_zero_pos = false;
@@ -101,9 +101,9 @@ float getAngle(int analogPin) {
   
   ang = -(18.0/70.0)*val + 90.0 + (18.0/70.0)*y_intercept;
   if (analogPin == elbow_pot)
-    ang+=10.5;
-  else
-    ang-=10.5;
+    ang+=5.5;
+//  else
+//    ang-=10.5;
   return ang;
 }
 
@@ -119,7 +119,7 @@ void setup() {
   // Elbow
   e_motor.init(42,41); 
   // Vertical
-  v_motor.init(49,47);
+  v_motor.init(6,7);
   // Gripper
   g_motor.init(48,46);
   // Twister
@@ -174,7 +174,7 @@ void loop() {
   if (motor_run) {
     s_motor.rotate(s_speed);
     e_motor.rotate(e_speed);
-    v_motor.rotate(1);
+    v_motor.rotate(0.2);
     g_motor.rotate(5);
     t_motor.rotate(3); 
 //    if (pressDetected()) {
@@ -183,17 +183,18 @@ void loop() {
     if (elbow_target) {
       e_ang = getAngle(elbow_pot);
       if (abs(e_ang - e_target) < 3) {
-        Serial.print("INFO: Arrive at angle ");
-        Serial.println(e_target);
+//        Serial.print("INFO: Arrive at angle ");
+//        Serial.println(e_target);
         elbow_target = false;
         e_motor.disableMotor();
         e_target = 0;
+        Serial.print("g");
       }
       
-      else if (e_target < e_ang && !e_motor.isClockwise()) {
+      else if (e_target > e_ang && !e_motor.isClockwise()) {
 //        Serial.print("clockwise");
         e_motor.clockwise();
-      } else if (e_target > e_ang && e_motor.isClockwise()) {
+      } else if (e_target < e_ang && e_motor.isClockwise()) {
 //        Serial.print("counterClockwise");
         e_motor.counterClockwise();
       }
@@ -220,6 +221,7 @@ void loop() {
       if (v_steps == 0) {
         vertical_target = false;
         v_motor.disableMotor();
+        Serial.print("g");
       }
     }    
   }
@@ -247,11 +249,11 @@ void checkString () {
   
   else if (inputString.substring(0,7) == "starget") {
     s_target = inputString.substring(8).toFloat();
-    Serial.print("Moving the shoulder to ");
-    Serial.println(s_target);
+//    Serial.print("Moving the shoulder to ");
+//    Serial.println(s_target);
     s_ang = getAngle(shoulder_pot);
-    Serial.print("Curent shoulder angle is ");
-    Serial.println(s_ang);
+//    Serial.print("Curent shoulder angle is ");
+//    Serial.println(s_ang);
     shoulder_target = true;
     if (s_target<s_ang)
       s_motor.clockwise();
@@ -282,7 +284,7 @@ void checkString () {
 //    Serial.print("Curent elbow angle is ");
     Serial.println(e_ang);
     elbow_target = true;
-    if (e_target<e_ang){
+    if (e_target>e_ang){
 //      Serial.print("Elbow motor is  moving CW");
       e_motor.clockwise();}
     else {
@@ -361,8 +363,8 @@ void checkString () {
   else if (inputString == "grip") {
     g_motor.counterClockwise();
     g_motor.enableMotor();
-    for (int i = 0; i < 660; i++) {
-      g_motor.rotate(5);
+    for (int i = 0; i < 715; i++) {
+      g_motor.rotate(4);
     }
     g_motor.disableMotor();
     Serial.println("g");
@@ -370,8 +372,8 @@ void checkString () {
   else if (inputString == "release") {
     g_motor.clockwise();
     g_motor.enableMotor();
-    for (int i = 0; i < 660; i++) {
-      e_motor.rotate(5);
+    for (int i = 0; i < 670; i++) {
+      g_motor.rotate(5);
     }
     g_motor.disableMotor();
     Serial.println("g");
